@@ -105,6 +105,10 @@ export const T = {
       en: `PAJ GPS refused the e-mail address or the password${status ? ` (HTTP ${status})` : ''}: nothing more is sent with them. Check them on connect.paj-gps.de, then save the configuration, or click "Test the connection" (one try, no sooner than the refresh interval).`,
       fr: `PAJ GPS a refusé l’adresse e-mail ou le mot de passe${status ? ` (HTTP ${status})` : ''} : plus rien n’est envoyé avec eux. Vérifiez-les sur connect.paj-gps.de, puis enregistrez la configuration, ou cliquez sur « Tester la connexion » (un essai, pas avant la fin de l’intervalle de rafraîchissement).`,
     }),
+    loginNotFound: {
+      en: 'Unexpected answer of the PAJ GPS API: its login route was not found (HTTP 404; the API may have changed). Not about the credentials. No new try by itself: update the integration, or click "Test the connection" (one try, no sooner than the refresh interval).',
+      fr: 'Réponse inattendue de l’API PAJ GPS : sa route de connexion est introuvable (HTTP 404 ; l’API a peut-être changé). Rien à voir avec les identifiants. Aucun nouvel essai automatique : mettez à jour l’intégration, ou cliquez sur « Tester la connexion » (un essai, pas avant la fin de l’intervalle de rafraîchissement).',
+    },
     busy: (status, delay) => ({
       en: `PAJ GPS asked Gladys to wait (HTTP ${status ?? 429}): every request is paused for ${delayText(delay)}.`,
       fr: `PAJ GPS a demandé à Gladys d’attendre (HTTP ${status ?? 429}) : toutes les requêtes sont suspendues pendant ${delayText(delay)}.`,

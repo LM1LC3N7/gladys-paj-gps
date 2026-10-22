@@ -136,7 +136,8 @@ test('what a refusal of the login is', async () => {
     [[403, { 'content-type': 'text/html' }, '<html>Forbidden</html>'], CODES.FORBIDDEN],
     [[429, { 'retry-after': '120' }, ''], CODES.HTTP],
     [[503, {}, ''], CODES.HTTP],
-    [[404, { 'content-type': 'text/html' }, '<html>Not found</html>'], CODES.HTTP],
+    // A login route gone: final too (never tried again by itself), with its own status text.
+    [[404, { 'content-type': 'text/html' }, '<html>Not found</html>'], CODES.REFUSED],
     [ok({ success: { token: 'bad token with spaces' } }), CODES.BAD_ANSWER],
     [[200, { 'content-type': 'text/html' }, '<html>portal</html>'], CODES.BAD_ANSWER],
   ];

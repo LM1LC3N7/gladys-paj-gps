@@ -91,10 +91,13 @@ export const PACING = Object.freeze({
   SAVE_MIN_GAP: 60_000,
   /** An alert older than this when it is read is recorded, never fired. */
   ALERT_MAX_AGE: 3600_000,
-  /** The alerts are never asked further back than this. */
-  ALERT_LOOKBACK: 24 * 3600_000,
-  /** A date more than this ahead of the clock of Gladys is no date. */
-  FUTURE: 24 * 3600_000,
+  /** The alerts are never asked further back than ALERT_MAX_AGE plus this. */
+  ALERT_SLACK: 2 * 60_000,
+  /**
+   * A position or an alert dated more than this ahead of the clock of Gladys
+   * is no date (a tracker with a wrong clock): never published, never a mark.
+   */
+  FUTURE: 5 * 60_000,
 });
 
 /** Size cap of an answer read from PAJ GPS. */

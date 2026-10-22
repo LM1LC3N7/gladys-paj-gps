@@ -40,7 +40,10 @@ Gladys, to compute the distances.
 | At home          | 1 within the radius; 0 beyond the radius plus a margin (half of it, 100 m at least) |
 
 A position is published once: a restart of the integration never sends an old
-position again as a new one. Everything is read only: a tracker cannot be
+position again as a new one, a position older than the one shown (a late
+upload of the tracker) is never published, and a position dated more than
+5 minutes ahead of the clock of Gladys (a tracker with a wrong clock) is
+ignored. Everything is read only: a tracker cannot be
 switched, configured or located on demand from Gladys.
 
 **Presence of a Gladys user.** Gladys cannot yet move a user on its map from
@@ -58,8 +61,12 @@ and its time (UTC); never the position.
 
 - Read at the refresh, so an alert arrives up to one interval late.
 - Only alerts of the last hour fire; none for what happened before the
-  tracker was created in Gladys or before the first reading.
-- 30 events at most per reading; nothing is marked read in PAJ.
+  tracker was created in Gladys or before the first reading. **With a refresh
+  of 1 hour, an alert may never fire** (it can be just over an hour old when
+  read): choose 30 minutes or less if you use this trigger.
+- 30 events at most per reading (the most recent ones); nothing is marked
+  read in PAJ. An alert route refused for one tracker (HTTP 401/403) only
+  skips its alerts for that reading.
 
 ## Pace, failures and privacy
 
@@ -83,7 +90,14 @@ and its time (UTC); never the position.
   The positions published are kept by Gladys like any other value (without
   history unless you turn it on). The e-mail address and the password go in
   the address of the login request, as the PAJ API asks for them (over
-  HTTPS, never logged).
+  HTTPS, never logged by the integration). They may therefore appear in the
+  access logs of PAJ or of its hosting: use a password for PAJ that you use
+  nowhere else.
+- **Unexpected login answer** (HTTP 404: the API may have changed): said as
+  such, not as refused credentials; not tried again by itself.
+- **Houses.** Read again at every reading: a house given a position later
+  counts at the next reading. A restart keeps "at home" within the margin
+  (the last value Gladys keeps).
 
 ## Limits
 

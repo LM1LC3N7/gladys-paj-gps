@@ -64,12 +64,12 @@ const safe = (value) =>
   value === undefined || (typeof value === 'number' && !Number.isFinite(value)) ? null : value;
 /** Transport failures: the other alerts of the round are not tried. */
 const TRANSPORT = new Set([CODES.UNREACHABLE, CODES.TIMEOUT, CODES.TLS_UNTRUSTED]);
-/** A failure that says something about the credentials or a pause (kept in /data). */
-const keep = (err) =>
-  err instanceof PajError &&
-  (err.code === CODES.REFUSED || err.code === CODES.FORBIDDEN || isBusy(err))
-    ? err
-    : null;
+/**
+ * A failure of the alerts route that takes the usual path (kept in /data): a
+ * login refused, or a 429. Anything else there only skips the alerts.
+ */
+const alertFailure = (err) =>
+  err instanceof PajError && (err.code === CODES.REFUSED || err.status === 429) ? err : null;
 
 export class PajApp {
   /**
@@ -193,7 +193,7 @@ export class PajApp {
         await this.publishDiscovered(true);
         await this.publishTransports();
         await this.reportStatus();
-        await this.tick();
+        this.startReading();
         return;
       }
       await this.start(raw);
@@ -218,6 +218,13 @@ export class PajApp {
 
   /** A configuration saved: only a real change restarts. */
   configUpdated(raw = {}) {
+    if (configFingerprint(raw) !== this.fingerprint) {
+      // At once, before the queue: a reading of the former configuration in
+      // flight publishes nothing and sends nothing more.
+      this.generation += 1;
+      this.client?.close();
+      this.client = undefined;
+    }
     return this.enqueue(async () => {
       this.clearConfigRetry();
       if (configFingerprint(raw) === this.fingerprint) return;
@@ -226,13 +233,25 @@ export class PajApp {
     });
   }
 
+  /** The last "at home" value Gladys keeps for a created device (0, 1) or null. */
+  lastAtHome(created) {
+    if (!created) return null;
+    const device = (this.gladys.devices ?? []).find((d) => d?.external_id === created.externalId);
+    const id = deviceIds(this.gladys, created.key).feature(FEATURES.AT_HOME);
+    const feature = (device?.features ?? []).find((f) => f?.external_id === id);
+    const value = feature?.last_value;
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return n === 1 ? 1 : n === 0 ? 0 : null;
+  }
+
   /** The located houses of Gladys (coordinates in memory only, never logged). */
   async loadHouses() {
     try {
       this.houses = housesOf(await this.gladys.getHouses());
     } catch (err) {
-      this.houses = [];
-      this.logger.warn(`Houses of Gladys not read (no distance to home): ${err.message}`);
+      // The last list read is kept.
+      this.logger.warn(`Houses of Gladys not read: ${err.message}`);
     }
   }
 
@@ -286,7 +305,16 @@ export class PajApp {
     await this.publishDiscovered(true);
     await this.publishTransports();
     await this.reportStatus();
-    await this.tick();
+    this.startReading();
+  }
+
+  /**
+   * A reading when one is due, never awaited by the start queue: a
+   * configuration saved meanwhile is applied at once (the reading of the
+   * former one publishes nothing).
+   */
+  startReading() {
+    this.tick().catch((err) => this.logger.warn(`Tick failed: ${err.message}`));
   }
 
   /** Stop the timers; a reading in progress ends but publishes nothing. */
@@ -440,6 +468,9 @@ export class PajApp {
     const urgent = this.savedAttemptAt === null || now - this.savedAttemptAt >= PACING.SAVE_MIN_GAP;
     await this.persist({ urgent });
     if (generation !== this.generation) return;
+    // The houses (a local call): one located since the start counts at once.
+    await this.loadHouses();
+    if (generation !== this.generation) return;
     client.beginReading();
     let devices;
     let points;
@@ -471,17 +502,26 @@ export class PajApp {
     this.readAt = this.now();
     this.capped = devices.length - followed.length;
     const trackers = new Map();
+    const createdByKey = new Map(createdDevices(this.gladys).map((c) => [c.key, c]));
     for (const device of followed) {
-      const point = points.get(device.id) ?? null;
+      const mark = markKey(memory.salt, device.id);
+      let point = points.get(device.id) ?? null;
+      // A point older than the one already published (a late upload, another
+      // source) never goes out as the current one.
+      const published = memory.marks.get(mark)?.f ?? null;
+      if (point && published !== null && Math.floor(point.atMs / 1000) < published) point = null;
       const distance = distanceHome(point, this.houses);
-      const home = presence(distance, this.config.homeRadius, this.presence.get(device.key));
-      if (home === null) this.presence.delete(device.key);
-      else this.presence.set(device.key, home);
+      // The previous value: this process, else the last one Gladys keeps
+      // (a restart within the margin never turns "at home" into "away").
+      const previous =
+        this.presence.get(device.key) ?? this.lastAtHome(createdByKey.get(device.key));
+      const home = presence(distance, this.config.homeRadius, previous);
+      if (home !== null) this.presence.set(device.key, home);
       if (device.hasBattery || (point && point.battery !== null)) this.batteries.add(device.key);
       trackers.set(device.key, {
         id: device.id,
         key: device.key,
-        mark: markKey(memory.salt, device.id),
+        mark,
         name: device.name ?? `PAJ GPS ${device.key.slice(0, 4)}`,
         hasBattery: this.batteries.has(device.key),
         point,
@@ -519,7 +559,8 @@ export class PajApp {
     }
     await this.persist({ urgent: true });
     if (generation !== this.generation) return;
-    for (const event of events.slice(0, LIMITS.EVENTS_PER_ROUND)) {
+    // Beyond the cap, the most recent ones go (in their order); the older are recorded.
+    for (const event of events.slice(-LIMITS.EVENTS_PER_ROUND)) {
       if (generation !== this.generation) return;
       await this.gladys
         .publishSceneEvent(SCENE_TRIGGERS.TRACKER_ALERT, event)
@@ -561,18 +602,34 @@ export class PajApp {
       }
       let alerts;
       try {
-        const start = Math.max(mark.a, nowSec - PACING.ALERT_LOOKBACK / 1000);
+        // Nothing older than ALERT_MAX_AGE fires: never asked further back.
+        const start = Math.max(
+          mark.a,
+          nowSec - Math.floor((PACING.ALERT_MAX_AGE + PACING.ALERT_SLACK) / 1000),
+        );
         alerts = await client.alerts(tracker.id, start, nowSec + 60);
       } catch (err) {
-        if (generation !== this.generation) return { events, failure: keep(err) };
+        if (generation !== this.generation) return { events, failure: alertFailure(err) };
         if (!(err instanceof PajError) || err.code === CODES.CLOSED) {
           if (!(err instanceof PajError)) {
             this.logger.warn(`Alerts not read: ${err?.name}: ${err?.message}`);
           }
           break;
         }
-        if (err.code === CODES.REFUSED || err.code === CODES.FORBIDDEN || err.status === 429) {
+        // A login refused while renewing is about the credentials; a 429
+        // pauses every path. A 401, a 403 or a token refused again on this
+        // secondary route only skips the alerts of this round.
+        if (err.code === CODES.REFUSED || err.status === 429) {
           failure = err;
+          break;
+        }
+        if (
+          err.code === CODES.SESSION ||
+          err.code === CODES.FORBIDDEN ||
+          err.status === 401 ||
+          err.status === 403
+        ) {
+          skipped += 1;
           break;
         }
         skipped += 1;
@@ -584,6 +641,7 @@ export class PajApp {
       let ids = new Set(mark.i);
       for (const alert of alerts) {
         const sec = Math.floor(alert.atMs / 1000);
+        // Dated in the future (a wrong clock): never fired, never a mark.
         if (alert.atMs > now + PACING.FUTURE) continue;
         const key = alertKey(memory.salt, alert.id);
         if (sec < mark.a || (sec === mark.a && mark.i.includes(key))) continue;
@@ -680,7 +738,11 @@ export class PajApp {
     if (config.emailInvalid) return { connected: false, message: T.status.emailInvalid };
     if (config.passwordInvalid) return { connected: false, message: T.status.passwordInvalid };
     if (this.refused()) {
-      return { connected: false, message: T.status.refused(this.memory.refused.status) };
+      const { status } = this.memory.refused;
+      return {
+        connected: false,
+        message: status === 404 ? T.status.loginNotFound : T.status.refused(status),
+      };
     }
     const now = this.now();
     if (this.paused()) {
@@ -775,11 +837,12 @@ export class PajApp {
       const point = tracker.point;
       const pointSec = Math.floor(point.atMs / 1000);
       const mark = this.memory.marks.get(tracker.mark);
+      // Newer than the last position published; the same one only for a
+      // tracker this process already published (Gladys forgot its values,
+      // or the presence changed), never an older one.
+      const markF = mark?.f ?? null;
       const fresh =
-        this.sent.has(tracker.key) ||
-        mark?.f === null ||
-        mark?.f === undefined ||
-        pointSec > mark.f;
+        markF === null || pointSec > markF || (pointSec === markF && this.sent.has(tracker.key));
       if (!fresh) continue;
       touched.push([tracker, pointSec]);
       const ids = deviceIds(this.gladys, tracker.key);
@@ -899,15 +962,23 @@ export class PajApp {
   /** Created or updated: the SDK forgot the values of this device, so do we; its values go. */
   async deviceCreated(device) {
     const parsed = parseExternalId(this.gladys, device?.external_id);
-    this.forget(device?.external_id);
-    this.transports.delete(device?.external_id);
     if (parsed && parsed.feature === null) this.sent.add(parsed.key);
-    if (this.online) await this.publishStates();
-    await this.publishTransports();
+    await this.deviceChanged(device);
   }
 
+  /**
+   * Updated (renamed, moved to a room): the values Gladys keeps stay; a
+   * position published before a restart is never sent again as a new one.
+   */
   async deviceUpdated(device) {
-    await this.deviceCreated(device);
+    await this.deviceChanged(device);
+  }
+
+  async deviceChanged(device) {
+    this.forget(device?.external_id);
+    this.transports.delete(device?.external_id);
+    if (this.online) await this.publishStates();
+    await this.publishTransports();
   }
 
   deviceDeleted(device) {

@@ -130,6 +130,11 @@ export class PajClient {
       }
       throw new PajError(CODES.BAD_ANSWER, 'Login answered without a token');
     }
+    if (status === 404) {
+      // The route is gone (the API changed?): not about the credentials, but
+      // final too (never tried again by itself); the status says so.
+      throw new PajError(CODES.REFUSED, 'Login route not found (HTTP 404)', { status });
+    }
     if (status === 401 || (status >= 400 && status <= 499 && envelope)) {
       throw new PajError(CODES.REFUSED, `Login refused (HTTP ${status})`, { status });
     }
@@ -178,7 +183,11 @@ export class PajClient {
     }
     let response = await this.send(method, path, options);
     if (response.status === 401) {
-      if (this.renewed) throw new PajError(CODES.SESSION, 'Token refused again', { status: 401 });
+      if (this.renewed) {
+        // Already renewed in this reading: the token is dead, no other request uses it.
+        this.token = null;
+        throw new PajError(CODES.SESSION, 'Token refused again', { status: 401 });
+      }
       await this.renew();
       response = await this.send(method, path, options);
       if (response.status === 401) {

@@ -35,4 +35,21 @@ the notes of the version's GitHub Release.
   restart.
 - Button "Test the connection".
 
+### Changed (review before the first release)
+
+- A position older than the one shown, or dated more than 5 minutes ahead,
+  is never published; an alert dated in the future never fires.
+- "At home" survives a restart within the margin (the value Gladys keeps);
+  a house given a position later counts at the next reading.
+- A refusal on the alerts of one tracker only skips them for that reading
+  (no 6 h pause); a token refused again stops the alerts round.
+- A configuration saved during a slow reading is applied at once; the old
+  reading publishes nothing.
+- Beyond 30 alerts in a reading, the most recent ones fire.
+- Updating a device in Gladys no longer sends an old position again.
+- A login route not found (HTTP 404) has its own status, not "credentials
+  refused".
+- Docs: a 1 h refresh may miss an alert; use a PAJ password used nowhere
+  else (it goes in the query of the login, as the API asks).
+
 [Unreleased]: https://github.com/LM1LC3N7/gladys-paj-gps/commits/main

@@ -28,6 +28,10 @@ up to date at the end of every milestone.
       PC: no e2e test in a container. The store validator
       (`npx github:GladysAssistant/integration-store .`) was not run by the
       dev agent (the main session runs it).
+- [x] **Review corrections** (2026-10-22, review 1 of `3ba7826`, 5 important
+      and 7 minor points): see "Decisions" (review corrections);
+      `test/review.test.js` holds the scenarios S1-S12 of the review,
+      inverted.
 - [ ] **Milestone 2 — real account** (a tester with a PAJ tracker): record
       real answers as fixtures (ids, names, positions removed), fix what
       differs. To check first:
@@ -140,10 +144,10 @@ fromLastPoint: false }`), `GET /api/v1/customnotifications/<id>?startDate
   goes, and a device just created gets its current values.
 - **Alerts**: only for the trackers created in Gladys; the first reading of
   a tracker records the date (no request, no event); then the window from
-  that date (24 h back at most) to now + 1 min, 20 alerts per tracker. An
-  alert fires once (date and HMAC of the ids of the last second kept in
+  that date (1 h 2 min back at most) to now + 1 min, 20 alerts per tracker.
+  An alert fires once (date and HMAC of the ids of the last second kept in
   `/data`), only if it is at most 1 h old; 30 events per reading at most
-  (the rest is recorded). The marks are written before the events leave (a
+  (the most recent ones; the older are recorded). The marks are written before the events leave (a
   crash never fires them twice). Event data: `device`, `alert_type` (the
   types of `alert_types.py`, else `other`), `device_name`, `at` (UTC text);
   never the position; never undefined nor NaN.
@@ -156,10 +160,40 @@ fromLastPoint: false }`), `GET /api/v1/customnotifications/<id>?startDate
   rounded to 6 decimals; 0/0 is no position. `/data` (`paj-gps-state.json`,
   mode 0600): `salt`, `lastAttemptAt`, `pause`, `refused` (HMAC of refused
   credentials only), `scope` (HMAC of the e-mail address), `marks`.
-- **Dates**: unix seconds, outside 2000-2100 no date, more than 24 h ahead
-  ignored. Every date shown is UTC; `test/timezone.test.js` runs
+- **Dates**: unix seconds, outside 2000-2100 no date, more than 5 min ahead
+  of the clock of Gladys ignored (positions and alerts; the marks read back
+  are capped at now + 5 min). Every date shown is UTC; `test/timezone.test.js` runs
   `test/app.test.js` again with TZ=Europe/Lisbon and TZ=Europe/Helsinki.
 - **Transport badge**: `cloud` when the last reading worked and the tracker
   is in it, `unreachable` otherwise. `transports: ["cloud"]`.
 - `gladys_version >=5.1.0` (scene triggers). Categories `services`,
   `security` (anti-theft). No Bluetooth, no command.
+- **Review corrections of `3ba7826`** (review 1):
+  - (1) a position is published only when newer than the last one published
+    (`marks.f`), or the same one for a tracker this process already
+    published; an older point (late upload) never goes, nor moves the
+    presence;
+  - (2) positions and alerts dated more than 5 min ahead are refused; `f`
+    and `a` capped at now + 5 min when read back;
+  - (3) the previous "at home" after a restart is the `last_value` of the
+    `at_home` feature in `gladys.devices`; a failed `getHouses()` keeps the
+    last list and the presence;
+  - (4) on the alerts route, a 401, a 403 (any body) or a token refused
+    again only skips the alerts of that reading; only the list of trackers
+    and the positions can set the 6 h firewall pause; a 429 there still
+    pauses, a login refused while renewing is still final;
+  - (5) a configuration saved bumps the generation and closes the client at
+    once, before the start queue; `connected` and `start` never await the
+    reading (`startReading()`), so a new configuration is applied at once and
+    the old reading publishes nothing;
+  - (6) a token refused again: `token = null` and the alerts round stops;
+  - (7) alerts asked from max(mark, now - 1 h 2 min); beyond 30, the most
+    recent fire;
+  - (8, 11) docs: a 1 h refresh may miss an alert (choose 30 min or less);
+    the password goes in the query (PAJ access logs): use a PAJ password used
+    nowhere else;
+  - (9) `getHouses()` read at the start of every reading;
+  - (10) `deviceUpdated` no longer allows the last position to be sent again
+    (only `deviceCreated` does);
+  - (12) a 404 on the login: final as before, but its own status ("login
+    route not found, the API may have changed"), not "credentials refused".

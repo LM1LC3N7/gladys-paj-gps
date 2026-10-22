@@ -40,7 +40,10 @@ votre Gladys, pour calculer les distances.
 | À la maison              | 1 dans le rayon ; 0 au-delà du rayon plus une marge (la moitié, 100 m au moins) |
 
 Une position n'est publiée qu'une fois : un redémarrage de l'intégration ne
-renvoie jamais une ancienne position comme une nouvelle. Tout est en lecture
+renvoie jamais une ancienne position comme une nouvelle, une position plus
+ancienne que celle affichée (envoi différé du traceur) n'est jamais publiée, et
+une position datée de plus de 5 minutes après l'heure de Gladys (traceur à
+l'horloge fausse) est ignorée. Tout est en lecture
 seule : un traceur ne peut être ni allumé, ni réglé, ni localisé à la demande
 depuis Gladys.
 
@@ -63,8 +66,12 @@ la position.
   intervalle de retard.
 - Seules les alertes de la dernière heure déclenchent ; aucune pour ce qui
   s'est passé avant la création du traceur dans Gladys ou avant la première
-  lecture.
-- 30 événements au plus par lecture ; rien n'est marqué lu chez PAJ.
+  lecture. **Avec un rafraîchissement d'1 heure, une alerte peut ne jamais
+  déclencher** (elle peut avoir un peu plus d'une heure quand elle est lue) :
+  choisissez 30 minutes ou moins si vous utilisez ce déclencheur.
+- 30 événements au plus par lecture (les plus récents) ; rien n'est marqué lu
+  chez PAJ. Une route d'alertes refusée pour un traceur (HTTP 401/403) ne fait
+  que sauter ses alertes pour cette lecture.
 
 ## Rythme, échecs et vie privée
 
@@ -92,7 +99,15 @@ la position.
   gardées par Gladys comme toute autre valeur (sans historique sauf si vous
   l'activez). L'adresse e-mail et le mot de passe passent dans l'adresse de
   la requête de connexion, comme l'API PAJ le demande (en HTTPS, jamais
-  journalisés).
+  journalisés par l'intégration). Ils peuvent donc figurer dans les journaux
+  d'accès de PAJ ou de son hébergeur : utilisez pour PAJ un mot de passe que
+  vous n'utilisez nulle part ailleurs.
+- **Réponse inattendue à la connexion** (HTTP 404 : l'API a peut-être
+  changé) : dite comme telle, pas comme des identifiants refusés ; pas de
+  nouvel essai automatique.
+- **Maisons.** Relues à chaque lecture : une maison localisée plus tard compte
+  dès la lecture suivante. Un redémarrage garde « à la maison » dans la marge
+  (la dernière valeur gardée par Gladys).
 
 ## Limites
 

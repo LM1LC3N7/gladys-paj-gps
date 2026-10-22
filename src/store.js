@@ -78,7 +78,7 @@ const MARK_KEY = /^[0-9a-f]{32}$/;
 const ALERT_ID = /^[0-9a-f]{16}$/;
 const MAX_MARKS = 4 * LIMITS.DEVICES;
 const seconds = (value, nowSec) =>
-  Number.isSafeInteger(value) && value > 0 ? Math.min(value, nowSec + 86_400) : null;
+  Number.isSafeInteger(value) && value > 0 ? Math.min(value, nowSec + PACING.FUTURE / 1000) : null;
 
 /** The persisted state, repaired and bounded (`now` caps what lies in the future). */
 export function normalizeMemory(raw, now) {
