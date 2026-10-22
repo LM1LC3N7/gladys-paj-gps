@@ -6,8 +6,8 @@
     "en": "Position, battery, presence at home and alerts of your PAJ GPS trackers, read only.",
     "fr": "Position, batterie, présence au domicile et alertes de vos traceurs PAJ GPS, en lecture."
   },
-  "version": "0.1.0",
-  "docker_image": "ghcr.io/lm1lc3n7/gladys-paj-gps:0.1.0",
+  "version": "0.1.1",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-paj-gps:0.1.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-paj-gps/main/cover.png",
   "categories": ["services", "security"],

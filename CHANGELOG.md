@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-22
+
 ### Added
 
 - First version, never tested with a real PAJ GPS tracker nor account: the
@@ -52,4 +54,5 @@ the notes of the version's GitHub Release.
 - Docs: a 1 h refresh may miss an alert; use a PAJ password used nowhere
   else (it goes in the query of the login, as the API asks).
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-paj-gps/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-paj-gps/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-paj-gps/releases/tag/v0.1.1

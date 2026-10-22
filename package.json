@@ -1,6 +1,6 @@
 {
   "name": "gladys-paj-gps",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Gladys Assistant external integration for PAJ GPS trackers: position, speed, battery, last seen, distance to home and at home, and the alerts of the trackers (SOS, shock, low battery...), read only, through the cloud of PAJ GPS. Unofficial, not affiliated with PAJ.",
   "type": "module",
