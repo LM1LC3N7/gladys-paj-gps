@@ -289,3 +289,19 @@ test('M12: a 404 on the login says the route changed, not the credentials; never
   await minutes(60);
   assert.equal(paj.count('/api/v1/login'), 1);
 });
+
+test('R1: a permanent 403 on the alerts of the first tracker; the next one still fires', async () => {
+  const paj = createFakePaj();
+  const { app, gladys, minutes, clock } = await setup({ paj });
+  await minutes(5); // the first alerts round only marks
+  // Golf comes first (sorted by name): its alerts are always refused.
+  paj.broken[`/api/v1/customnotifications/${GOLF}`] = 403;
+  paj.alerts[REX] = [alert(77, REX, 4, clock.now + MIN)];
+  await minutes(5);
+  assert.deepEqual(
+    gladys.fake.sceneEvents.map((e) => [e.data.device_name, e.data.alert_type]),
+    [['Rex', 'sos']],
+  );
+  assert.equal(app.memory.pause, null);
+  assert.equal(gladys.fake.connectionStatus.connected, true);
+});

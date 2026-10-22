@@ -178,8 +178,9 @@ fromLastPoint: false }`), `GET /api/v1/customnotifications/<id>?startDate
   - (3) the previous "at home" after a restart is the `last_value` of the
     `at_home` feature in `gladys.devices`; a failed `getHouses()` keeps the
     last list and the presence;
-  - (4) on the alerts route, a 401, a 403 (any body) or a token refused
-    again only skips the alerts of that reading; only the list of trackers
+  - (4) on the alerts route, a 401 or a 403 (any body) only skips the
+    alerts of that tracker for that reading (review 2: the next trackers are
+    still read); a token refused again stops the alerts round; only the list of trackers
     and the positions can set the 6 h firewall pause; a 429 there still
     pauses, a login refused while renewing is still final;
   - (5) a configuration saved bumps the generation and closes the client at

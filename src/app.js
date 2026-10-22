@@ -617,22 +617,15 @@ export class PajApp {
           break;
         }
         // A login refused while renewing is about the credentials; a 429
-        // pauses every path. A 401, a 403 or a token refused again on this
-        // secondary route only skips the alerts of this round.
+        // pauses every path. A token refused again (dead for this reading)
+        // stops the round; a 401 or a 403 of one tracker skips only that
+        // tracker's alerts.
         if (err.code === CODES.REFUSED || err.status === 429) {
           failure = err;
           break;
         }
-        if (
-          err.code === CODES.SESSION ||
-          err.code === CODES.FORBIDDEN ||
-          err.status === 401 ||
-          err.status === 403
-        ) {
-          skipped += 1;
-          break;
-        }
         skipped += 1;
+        if (err.code === CODES.SESSION) break;
         if (TRANSPORT.has(err.code)) break;
         continue;
       }
