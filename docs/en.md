@@ -1,61 +1,97 @@
-# Demo Devices Template
+# PAJ GPS
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Follow your PAJ GPS trackers (car, bike, people, pets, valuables) in Gladys:
+position, speed, battery, last seen, distance to home and "at home", and the
+alerts PAJ raises (SOS button, shock, low battery, zone...). Read only,
+through the cloud of PAJ GPS (connect.paj-gps.de), with the account of the
+PAJ app.
 
-## What you get
+> This integration has never been tested with a real PAJ GPS tracker nor a
+> real account: it follows the documented API of PAJ and the pajgps-api
+> library. Please report what differs. Unofficial integration, not
+> affiliated with PAJ.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## Setup
 
-## Configuration
+1. Fill in the **e-mail address** and the **password** of your PAJ GPS
+   account (the ones you use in the PAJ app or on connect.paj-gps.de). The
+   password is kept by Gladys in its database, never shown again, never
+   logged, sent only to the PAJ GPS API.
+2. Choose the **refresh** (5 minutes by default, never less) and the
+   **"at home" radius** (200 m by default).
+3. Save. Gladys reads the account, then the **Discovery** tab lists one device
+   per tracker (20 at most): add the ones you want.
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+For the distance to home, give your house a position in Gladys
+(**Settings > Houses**). On installation, Gladys asks you to let the
+integration read the position of your houses: it is only used here, in your
+Gladys, to compute the distances.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+## What each tracker gives
 
-## Actions
+| Feature          | What it is                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Latitude         | Last position known by PAJ (no history by default)                                  |
+| Longitude        | Last position known by PAJ (no history by default)                                  |
+| Speed            | km/h at the last position                                                           |
+| Battery          | % (trackers with their own battery only)                                            |
+| Last seen        | Date of the last position (UTC)                                                     |
+| Distance to home | Meters to the nearest house of Gladys that has a position                           |
+| At home          | 1 within the radius; 0 beyond the radius plus a margin (half of it, 100 m at least) |
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+A position is published once: a restart of the integration never sends an old
+position again as a new one. Everything is read only: a tracker cannot be
+switched, configured or located on demand from Gladys.
 
-## Scenes
+**Presence of a Gladys user.** Gladys cannot yet move a user on its map from
+an integration: use the "At home" feature of the tracker in your scenes (for
+example "when At home of the car becomes 1").
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+## The "PAJ GPS alert" scene trigger
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+It fires for each alert PAJ records for a tracker **created in Gladys**:
+choose a tracker (or any) and an alert type (or any): SOS, shock (movement),
+low battery, radius left, speed, power cut off, ignition, drop, zone entered,
+zone left, voltage, turned off, other. The alerts are set in the PAJ app
+(they must be turned on there). Variables: the tracker name, the alert type
+and its time (UTC); never the position.
 
-## Dashboard
+- Read at the refresh, so an alert arrives up to one interval late.
+- Only alerts of the last hour fire; none for what happened before the
+  tracker was created in Gladys or before the first reading.
+- 30 events at most per reading; nothing is marked read in PAJ.
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+## Pace, failures and privacy
 
-## Troubleshooting
+- **Pace.** One reading per interval: the trackers and their last positions
+  (two requests), then one request per tracker created in Gladys for its
+  alerts. Nothing reads sooner: neither the **Test the connection** button,
+  nor Discovery, nor a reconnection, nor saving an unchanged configuration,
+  nor a restart (the time of the last attempt is kept in `/data`).
+- **Refused credentials.** When PAJ refuses the e-mail address or the
+  password, nothing more is sent with them (a wrong password tried again and
+  again may lock the account). Correct them and save, or click **Test the
+  connection**: one more try, never sooner than the interval. A new token is
+  asked at most once per reading when PAJ refuses the current one.
+- **PAJ asks to wait** (HTTP 429, a server error): every request pauses
+  (Retry-After when given, 6 h at most), even after a restart. A 403 page of
+  a firewall pauses 6 h (not about the credentials).
+- **Privacy.** Positions, tracker names and ids, the e-mail address, the
+  password and the tokens are never logged nor written to disk by the
+  integration. `/data` only keeps salted fingerprints, the time of the last
+  attempt, a pause, and the dates of the last position and alert published.
+  The positions published are kept by Gladys like any other value (without
+  history unless you turn it on). The e-mail address and the password go in
+  the address of the login request, as the PAJ API asks for them (over
+  HTTPS, never logged).
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+## Limits
+
+- 20 trackers at most per account (the ones created in Gladys first).
+- A tracker reports its position at its own pace (PAJ settings), often less
+  often than the refresh.
+- Not tested with a real tracker (see above). The voltage of car trackers,
+  the geofences and the trip history are not read (yet).
+
+Reference: [pajgps-api](https://github.com/Skipperro/pajgps-api) (MIT), ported
+to JavaScript.

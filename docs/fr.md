@@ -1,67 +1,107 @@
-# Template de démonstration
+# PAJ GPS
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Suivez vos traceurs PAJ GPS (voiture, vélo, personnes, animaux, objets de
+valeur) dans Gladys : position, vitesse, batterie, vu pour la dernière fois,
+distance au domicile et « à la maison », et les alertes que PAJ lève (bouton
+SOS, choc, batterie faible, zone…). Lecture seule, par le cloud de PAJ GPS
+(connect.paj-gps.de), avec le compte de l'application PAJ.
 
-## Ce que vous obtenez
+> Cette intégration n'a jamais été testée avec un vrai traceur PAJ GPS ni un
+> vrai compte : elle suit l'API documentée de PAJ et la bibliothèque
+> pajgps-api. Signalez ce qui diffère. Intégration non officielle, sans lien
+> avec PAJ.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Mise en place
 
-## Configuration
+1. Saisissez l'**adresse e-mail** et le **mot de passe** de votre compte PAJ
+   GPS (ceux de l'application PAJ ou de connect.paj-gps.de). Le mot de passe
+   est gardé par Gladys dans sa base, jamais réaffiché, jamais journalisé,
+   envoyé seulement à l'API PAJ GPS.
+2. Choisissez le **rafraîchissement** (5 minutes par défaut, jamais moins) et
+   le **rayon « à la maison »** (200 m par défaut).
+3. Enregistrez. Gladys lit le compte, puis l'onglet **Découverte** liste un
+   appareil par traceur (20 au plus) : ajoutez ceux que vous voulez.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+Pour la distance au domicile, donnez une position à votre maison dans Gladys
+(**Paramètres > Maisons**). À l'installation, Gladys vous demande de laisser
+l'intégration lire la position de vos maisons : elle ne sert qu'ici, dans
+votre Gladys, pour calculer les distances.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Ce que donne chaque traceur
 
-## Actions
+| Fonction                 | Ce que c'est                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| Latitude                 | Dernière position connue de PAJ (sans historique par défaut)                    |
+| Longitude                | Dernière position connue de PAJ (sans historique par défaut)                    |
+| Vitesse                  | km/h à la dernière position                                                     |
+| Batterie                 | % (traceurs avec leur propre batterie seulement)                                |
+| Vu pour la dernière fois | Date de la dernière position (UTC)                                              |
+| Distance au domicile     | Mètres jusqu'à la maison de Gladys la plus proche qui a une position            |
+| À la maison              | 1 dans le rayon ; 0 au-delà du rayon plus une marge (la moitié, 100 m au moins) |
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Une position n'est publiée qu'une fois : un redémarrage de l'intégration ne
+renvoie jamais une ancienne position comme une nouvelle. Tout est en lecture
+seule : un traceur ne peut être ni allumé, ni réglé, ni localisé à la demande
+depuis Gladys.
 
-## Scènes
+**Présence d'un utilisateur Gladys.** Gladys ne sait pas encore déplacer un
+utilisateur sur sa carte depuis une intégration : utilisez la fonction « À la
+maison » du traceur dans vos scènes (par exemple « quand À la maison de la
+voiture passe à 1 »).
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+## Le déclencheur de scène « Alerte PAJ GPS »
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+Il se déclenche pour chaque alerte que PAJ enregistre pour un traceur **créé
+dans Gladys** : choisissez un traceur (ou tous) et un type d'alerte (ou tous) :
+SOS, choc (mouvement), batterie faible, rayon quitté, vitesse, alimentation
+coupée, contact, chute, zone entrée, zone quittée, tension, éteint, autre. Les
+alertes se règlent dans l'application PAJ (elles doivent y être activées).
+Variables : le nom du traceur, le type d'alerte et son heure (UTC) ; jamais
+la position.
 
-## Tableau de bord
+- Lu au rythme du rafraîchissement : une alerte arrive avec au plus un
+  intervalle de retard.
+- Seules les alertes de la dernière heure déclenchent ; aucune pour ce qui
+  s'est passé avant la création du traceur dans Gladys ou avant la première
+  lecture.
+- 30 événements au plus par lecture ; rien n'est marqué lu chez PAJ.
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+## Rythme, échecs et vie privée
 
-## Dépannage
+- **Rythme.** Une lecture par intervalle : les traceurs et leurs dernières
+  positions (deux requêtes), puis une requête par traceur créé dans Gladys
+  pour ses alertes. Rien ne lit plus tôt : ni le bouton **Tester la
+  connexion**, ni la Découverte, ni une reconnexion, ni l'enregistrement d'une
+  configuration inchangée, ni un redémarrage (l'heure de la dernière tentative
+  est gardée dans `/data`).
+- **Identifiants refusés.** Quand PAJ refuse l'adresse e-mail ou le mot de
+  passe, plus rien n'est envoyé avec eux (un mauvais mot de passe essayé
+  encore et encore peut bloquer le compte). Corrigez-les et enregistrez, ou
+  cliquez sur **Tester la connexion** : un essai de plus, jamais avant la fin
+  de l'intervalle. Un nouveau jeton est demandé au plus une fois par lecture
+  quand PAJ refuse l'actuel.
+- **PAJ demande d'attendre** (HTTP 429, erreur serveur) : toutes les requêtes
+  sont suspendues (Retry-After s'il est donné, 6 h au plus), même après un
+  redémarrage. Une page 403 d'un pare-feu suspend 6 h (rien à voir avec les
+  identifiants).
+- **Vie privée.** L'intégration ne journalise jamais et n'écrit jamais sur
+  disque les positions, les noms et numéros des traceurs, l'adresse e-mail,
+  le mot de passe ni les jetons. `/data` ne garde que des empreintes salées,
+  l'heure de la dernière tentative, une pause, et les dates de la dernière
+  position et de la dernière alerte publiées. Les positions publiées sont
+  gardées par Gladys comme toute autre valeur (sans historique sauf si vous
+  l'activez). L'adresse e-mail et le mot de passe passent dans l'adresse de
+  la requête de connexion, comme l'API PAJ le demande (en HTTPS, jamais
+  journalisés).
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+## Limites
+
+- 20 traceurs au plus par compte (ceux créés dans Gladys d'abord).
+- Un traceur envoie sa position à son propre rythme (réglages PAJ), souvent
+  moins souvent que le rafraîchissement.
+- Jamais testée avec un vrai traceur (voir plus haut). La tension des
+  traceurs de voiture, les zones et l'historique des trajets ne sont pas
+  (encore) lus.
+
+Référence : [pajgps-api](https://github.com/Skipperro/pajgps-api) (MIT),
+portée en JavaScript.

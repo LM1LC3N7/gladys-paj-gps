@@ -12,44 +12,27 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- First version, never tested with a real PAJ GPS tracker nor account: the
+  PAJ GPS trackers of one account, read through connect.paj-gps.de (the
+  documented API of PAJ, as pajgps-api uses it). Read only.
+- One Gladys device per tracker (20 at most): latitude, longitude, speed,
+  battery (trackers with their own battery), last seen and, once a house of
+  Gladys has a position, distance to home and at home (with a margin against
+  the jitter of a position). Positions, speed and presence keep no history by
+  default.
+- Scene trigger "PAJ GPS alert": SOS, shock, low battery, zone and the other
+  alerts PAJ records for a tracker created in Gladys, filtered by tracker and
+  type; only the alerts of the last hour, none before the first reading.
+- Refresh every 5 minutes to every hour; "at home" radius of 100 m to 1 km.
+- The password kept by Gladys and never shown again, never logged; refused
+  credentials stop every request until they change (or one try of the test
+  button, never sooner than the interval); a token refused is renewed once
+  per reading; HTTP 429 and 5xx pause every request, bounded and kept in
+  `/data`; the time of the last attempt kept in `/data` (no faster reading
+  after a restart, a reconnection or a click).
+- No position, name, tracker id, e-mail address, password or token in the
+  logs or in `/data`; an old position never republished as new after a
+  restart.
+- Button "Test the connection".
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-paj-gps/commits/main

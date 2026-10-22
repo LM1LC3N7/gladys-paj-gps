@@ -1,177 +1,165 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "PAJ GPS",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Position, battery, presence at home and alerts of your PAJ GPS trackers, read only.",
+    "fr": "Position, batterie, présence au domicile et alertes de vos traceurs PAJ GPS, en lecture."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-paj-gps:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-paj-gps/main/cover.png",
+  "categories": ["services", "security"],
+  "transports": ["cloud"],
+  "location": true,
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": { "en": "How it works", "fr": "Fonctionnement" },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Gladys reads your PAJ GPS trackers through connect.paj-gps.de, with the account of the PAJ app. Each tracker becomes a Gladys device (Discovery tab): latitude, longitude, speed, battery, last seen, and, when a house of Gladys has a position, the distance to home and \"at home\". The alerts of the trackers (SOS, shock, low battery, zone...) become a scene trigger. Read only: Gladys never changes anything at PAJ. The position of your house is only used here, in your Gladys; positions are never logged nor written to disk by the integration. Never tested with a real tracker. Unofficial integration, not affiliated with PAJ.",
+        "fr": "Gladys lit vos traceurs PAJ GPS par connect.paj-gps.de, avec le compte de l'application PAJ. Chaque traceur devient un appareil Gladys (onglet Découverte) : latitude, longitude, vitesse, batterie, vu pour la dernière fois et, quand une maison de Gladys a une position, la distance au domicile et « à la maison ». Les alertes des traceurs (SOS, choc, batterie faible, zone…) deviennent un déclencheur de scène. Lecture seule : Gladys ne change jamais rien chez PAJ. La position de votre maison ne sert qu'ici, dans votre Gladys ; l'intégration ne journalise jamais les positions et ne les écrit jamais sur disque. Jamais testée avec un vrai traceur. Intégration non officielle, sans lien avec PAJ."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/Skipperro/pajgps-api",
+          "label": { "en": "pajgps-api (reference)", "fr": "pajgps-api (référence)" }
+        },
+        {
+          "url": "https://connect.paj-gps.de",
+          "label": { "en": "PAJ GPS portal", "fr": "Portail PAJ GPS" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
+      "key": "email",
+      "type": "string",
+      "label": { "en": "E-mail address", "fr": "Adresse e-mail" },
       "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+        "en": "The e-mail address of your PAJ GPS account. Never logged.",
+        "fr": "L'adresse e-mail de votre compte PAJ GPS. Jamais journalisée."
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "placeholder": { "en": "e.g. me@example.org", "fr": "ex. moi@example.org" },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
+      "key": "password",
+      "type": "secret",
+      "label": { "en": "Password", "fr": "Mot de passe" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "The password of your PAJ GPS account. Kept by Gladys in its database, never shown again, never logged, sent only to the PAJ GPS API.",
+        "fr": "Le mot de passe de votre compte PAJ GPS. Gardé par Gladys dans sa base, jamais réaffiché, jamais journalisé, envoyé seulement à l'API PAJ GPS."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": true
     },
     {
-      "key": "unit",
+      "key": "poll_interval",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
+      "label": { "en": "Refresh", "fr": "Rafraîchissement" },
+      "description": {
+        "en": "How often Gladys reads the trackers (two requests, plus one per tracker created in Gladys for its alerts). Nothing reads faster: neither the test button, nor a restart.",
+        "fr": "Fréquence de lecture des traceurs (deux requêtes, plus une par traceur créé dans Gladys pour ses alertes). Rien ne lit plus vite : ni le bouton de test, ni un redémarrage."
+      },
+      "required": true,
+      "default": "300",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        { "value": "300", "label": { "en": "Every 5 minutes", "fr": "Toutes les 5 minutes" } },
+        { "value": "600", "label": { "en": "Every 10 minutes", "fr": "Toutes les 10 minutes" } },
+        { "value": "900", "label": { "en": "Every 15 minutes", "fr": "Toutes les 15 minutes" } },
+        { "value": "1800", "label": { "en": "Every 30 minutes", "fr": "Toutes les 30 minutes" } },
+        { "value": "3600", "label": { "en": "Every hour", "fr": "Toutes les heures" } }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "home_radius",
+      "type": "select",
+      "label": { "en": "At home within", "fr": "À la maison dans un rayon de" },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "A tracker closer than this to a house of Gladys (Settings > Houses) is at home. It is away again only beyond this distance plus a margin (half of it, 100 m at least), against the jitter of a position.",
+        "fr": "Un traceur plus proche que cette distance d'une maison de Gladys (Paramètres > Maisons) est à la maison. Il n'est de nouveau absent qu'au-delà de cette distance plus une marge (la moitié, 100 m au moins), contre l'imprécision d'une position."
       },
-      "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "required": true,
+      "default": "200",
+      "options": [
+        { "value": "100", "label": { "en": "100 m", "fr": "100 m" } },
+        { "value": "200", "label": { "en": "200 m", "fr": "200 m" } },
+        { "value": "300", "label": { "en": "300 m", "fr": "300 m" } },
+        { "value": "500", "label": { "en": "500 m", "fr": "500 m" } },
+        { "value": "1000", "label": { "en": "1 km", "fr": "1 km" } }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "test_connection",
+      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "description": {
+        "en": "Reads the trackers if a reading is due, else shows the last result and the time of the next reading. After a refusal of the credentials, tries them once more, never sooner than the refresh interval.",
+        "fr": "Lit les traceurs si une lecture est due, sinon montre le dernier résultat et l'heure de la prochaine lecture. Après un refus des identifiants, les réessaie une fois, jamais avant la fin de l'intervalle de rafraîchissement."
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "tracker_alert",
+      "label": { "en": "PAJ GPS alert", "fr": "Alerte PAJ GPS" },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A PAJ GPS tracker created in Gladys raised an alert in PAJ (SOS button, shock, low battery, zone...). Only the alerts PAJ records (set them in the PAJ app); read at the chosen refresh, and only those of the last hour. None for what happened before the tracker was created in Gladys.",
+        "fr": "Un traceur PAJ GPS créé dans Gladys a levé une alerte chez PAJ (bouton SOS, choc, batterie faible, zone…). Seulement les alertes que PAJ enregistre (à régler dans l'application PAJ) ; lu au rythme du rafraîchissement, et seulement celles de la dernière heure. Aucune pour ce qui s'est passé avant la création du traceur dans Gladys."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "required": false,
+          "label": { "en": "Tracker (empty: any)", "fr": "Traceur (vide : tous)" }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "key": "alert_type",
+          "type": "select",
+          "required": false,
+          "label": { "en": "Alert (empty: any)", "fr": "Alerte (vide : toutes)" },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            { "value": "shock", "label": { "en": "Shock (movement)", "fr": "Choc (mouvement)" } },
+            { "value": "battery", "label": { "en": "Low battery", "fr": "Batterie faible" } },
+            { "value": "radius", "label": { "en": "Radius left", "fr": "Rayon quitté" } },
+            { "value": "sos", "label": { "en": "SOS", "fr": "SOS" } },
+            { "value": "speed", "label": { "en": "Speed", "fr": "Vitesse" } },
+            {
+              "value": "power_cut",
+              "label": { "en": "Power cut off", "fr": "Alimentation coupée" }
+            },
+            { "value": "ignition", "label": { "en": "Ignition", "fr": "Contact" } },
+            { "value": "drop", "label": { "en": "Drop", "fr": "Chute" } },
+            { "value": "area_enter", "label": { "en": "Zone entered", "fr": "Zone entrée" } },
+            { "value": "area_leave", "label": { "en": "Zone left", "fr": "Zone quittée" } },
+            { "value": "voltage", "label": { "en": "Voltage", "fr": "Tension" } },
+            { "value": "turn_off", "label": { "en": "Turned off", "fr": "Éteint" } },
+            { "value": "other", "label": { "en": "Other", "fr": "Autre" } }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "device_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": { "en": "Tracker name", "fr": "Nom du traceur" }
+        },
+        {
+          "key": "alert_type",
+          "type": "string",
+          "label": { "en": "Alert", "fr": "Alerte" }
+        },
+        {
+          "key": "at",
+          "type": "string",
+          "label": { "en": "Raised at (UTC)", "fr": "Levée à (UTC)" }
         }
       ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
-        }
-      ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
     }
   ]
 }
